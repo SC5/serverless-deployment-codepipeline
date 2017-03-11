@@ -6,7 +6,7 @@ CODEBUILD_NAME=serverless-example-codebuild
 REPOSITORY_NAME=serverless-example-repository
 
 aws cloudformation deploy \
-  --template-file pipeline-stack.yml \
+  --template-file cloudformation/pipeline-stack.yml \
   --stack-name $STACK_NAME \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
