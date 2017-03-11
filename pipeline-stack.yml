@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Serverless CodePipeline Deployment Example"
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: "example-repository"
+    Description: RepositoryName
+  PipelineName:
+    Type: String
+    Default: "example-pipeline"
+    Description: PipelineName
+  CodeBuildName:
+    Type: String
+    Default: "example-build-job"
+    Description: CodeBuildName
+Resources:
+  WebRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName:
+        Ref: RepositoryName
+      RepositoryDescription: WebRepository
+  WebProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn:
+      - WebRepository
+      - WebServiceRole
+    Properties:
+      Name:
+        Ref: CodeBuildName
+      Description:
+        Fn::Join:
+          - ""
+          - - "Build project for "
+            - Ref: PipelineName
+            - " Pipeline"
+      ServiceRole:
+        Fn::GetAtt:
+          - WebServiceRole
+          - Arn
+      Artifacts:
+        Type: no_artifacts
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/nodejs:4.4.7
+      Source:
+        Location:
+          Fn::GetAtt:
+            - WebRepository
+            - CloneUrlHttp
+        Type: CODECOMMIT
+      TimeoutInMinutes: 30
+  WebServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /service-role/
+  WebRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: WebRolePolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource:
+              - Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":log-group:/aws/codebuild/"
+                  - Ref: CodeBuildName
+              - Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":log-group:/aws/codebuild/"
+                  - Ref: CodeBuildName
+                  - ":*"
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+          - Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - WebRepository
+                  - Arn
+            Action:
+              - codecommit:GitPull
+      Roles:
+        - Ref: WebServiceRole
